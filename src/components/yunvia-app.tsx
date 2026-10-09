@@ -150,18 +150,23 @@ export function YunviaApp() {
   const t = (key: string) => translate(language, key);
 
   useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed: unknown = JSON.parse(saved);
-        if (isDemoState(parsed)) setDemo(parsed);
+    // Load browser-only demo state after hydration so server/client markup agrees.
+    // Scheduling after paint also avoids cascading synchronous effect updates.
+    const frame = window.requestAnimationFrame(() => {
+      try {
+        const saved = window.localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed: unknown = JSON.parse(saved);
+          if (isDemoState(parsed)) setDemo(parsed);
+        }
+        const savedLanguage = window.localStorage.getItem("yunvia-language");
+        if (savedLanguage === "en" || savedLanguage === "es") setLanguage(savedLanguage);
+      } catch {
+        // Storage may be blocked, or old demo data malformed. The demo still works in memory.
       }
-      const savedLanguage = window.localStorage.getItem("yunvia-language");
-      if (savedLanguage === "en" || savedLanguage === "es") setLanguage(savedLanguage);
-    } catch {
-      // Storage may be blocked, or old demo data may be malformed. The demo still works in memory.
-    }
-    setHydrated(true);
+      setHydrated(true);
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   useEffect(() => {
