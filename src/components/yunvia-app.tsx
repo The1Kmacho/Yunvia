@@ -248,10 +248,9 @@ export function YunviaApp() {
 
   function togglePledge(projectId: string, needId: string) {
     let changed = false;
-    let removing = false;
+    const removing = demo.myPledges.includes(needId);
     setDemo((before) => {
       const already = before.myPledges.includes(needId);
-      removing = already;
       const projects = before.projects.map((project) => project.id !== projectId ? project : ({
         ...project,
         needs: project.needs.map((need) => {
@@ -267,7 +266,6 @@ export function YunviaApp() {
         myPledges: already ? before.myPledges.filter((id) => id !== needId) : [...before.myPledges, needId]
       };
     });
-    // React may schedule state updates; feedback reflects the user's requested action.
     setToast(removing ? t("unpledgedToast") : t("pledgedToast"));
   }
 
