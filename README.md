@@ -6,7 +6,24 @@ Yunvia is an open-source project to help people build stronger, more self-suffic
 
 Born in Puerto Rico, designed for communities everywhere.
 
-> **Project status:** Early planning and foundation stage. Yunvia is not yet a deployed service, registered nonprofit, or legally cleared brand.
+> **Project status:** Interactive browser-only prototype. Yunvia is not yet a deployed community service, registered nonprofit, or legally cleared brand.
+
+## Interactive web prototype
+
+The first interactive UI is available on the `feat/community-prototype` branch for review. It includes **Spanish/English language switching, demo communities, project creation, milestones, resource needs, and voluntary help pledges**, with a mobile-friendly visual design.
+
+**This is an offline-style browser demonstration:** no accounts, backend, database, moderation, shared multi-user state, or production security controls. Sample members and projects are fictional. Changes are stored only in your browser.
+
+**Run locally:**
+
+```bash
+npm install
+npm run dev
+```
+
+Then open http://localhost:3000.
+
+See [PROTOTYPE.md](PROTOTYPE.md) for limitations and developer instructions, and [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) for the design direction.
 
 ## Why Yunvia exists
 
