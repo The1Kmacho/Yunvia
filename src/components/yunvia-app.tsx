@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { initialDemoState, STORAGE_KEY } from "@/lib/demo-data";
-import { initialCooperationState, isCooperationState } from "@/lib/cooperation";
+import { initialCooperationState, isCooperationState, upgradeCooperationState } from "@/lib/cooperation";
 import { CooperationHub } from "@/components/cooperation-hub";
 import { translate } from "@/lib/copy";
 import {
@@ -160,7 +160,16 @@ export function YunviaApp() {
         const saved = window.localStorage.getItem(STORAGE_KEY);
         if (saved) {
           const parsed: unknown = JSON.parse(saved);
-          if (isDemoState(parsed)) setDemo({ ...parsed, cooperation: isCooperationState(parsed.cooperation) ? parsed.cooperation : initialCooperationState() });
+          if (isDemoState(parsed)) setDemo({
+            ...parsed,
+            cooperation: isCooperationState(parsed.cooperation)
+              ? upgradeCooperationState(parsed.cooperation) : initialCooperationState(),
+            projects: parsed.projects.map((project) => ({
+              ...project,
+              needs: project.needs.map((need) => need.id === "g-volunteers" && !need.skillTaskIds
+                ? { ...need, skillTaskIds: ["gardening.planting" as const] } : need)
+            }))
+          });
         }
         const savedLanguage = window.localStorage.getItem("yunvia-language");
         if (savedLanguage === "en" || savedLanguage === "es") setLanguage(savedLanguage);
