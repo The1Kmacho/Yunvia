@@ -27,7 +27,7 @@ const wording: Record<Language, Labels> = {
     publish: "Publicar", existingNeeds: "Necesidades compartidas", addSkill: "Compartir una habilidad",
     skillDesc: "Solo las actividades seleccionadas del catálogo generan coincidencias. La descripción no se usa para emparejar.",
     skillLabel: "Habilidad disponible", optedIn: "Visibilidad voluntaria", activeNeed: "Visible en esta comunidad",
-    labelDrill: "Taladro", labelMower: "Cortadora de grama", labelRice: "Arroz", labelGardening: "Huertos", labelTutoring: "Tutorías",
+    labelDrill: "Taladro", labelMower: "Cortadora de grama", labelRice: "Arroz", labelEggs: "Huevos", labelVegetables: "Vegetales", labelGardening: "Huertos", labelTutoring: "Tutorías",
     roleMember: "Participante", roleOrganizer: "Organizador", roleExplain: "Estas vistas simulan responsabilidades separadas; aún no hay permisos de servidor.",
     buyingFlow: "Así funciona la compra colectiva", step1: "1. Vecinos muestran interés", step2: "2. El organizador obtiene cotizaciones", step3: "3. Cada miembro confirma su cantidad al precio propuesto", step4: "4. Se alcanza el mínimo y se cierran compromisos", step5: "5. Pago externo, recogido y distribución",
     terms: "Detalles del producto", pickup: "Logística y recogido", memberCost: "Mi total estimado", committed: "Mi cantidad comprometida",
@@ -81,7 +81,7 @@ const wording: Record<Language, Labels> = {
     publish: "Post", existingNeeds: "Shared needs", addSkill: "Share a skill",
     skillDesc: "Only selected catalog activities generate matches. Descriptions are not matching keys.",
     skillLabel: "Available skill", optedIn: "Shared voluntarily", activeNeed: "Visible in this community",
-    labelDrill: "Drill", labelMower: "Lawn mower", labelRice: "Rice", labelGardening: "Gardening", labelTutoring: "Tutoring",
+    labelDrill: "Drill", labelMower: "Lawn mower", labelRice: "Rice", labelEggs: "Eggs", labelVegetables: "Vegetables", labelGardening: "Gardening", labelTutoring: "Tutoring",
     roleMember: "Participant", roleOrganizer: "Organizer", roleExplain: "These views simulate separate responsibilities; no server permissions exist yet.",
     buyingFlow: "How group buying works", step1: "1. Neighbors express interest", step2: "2. Organizer collects supplier quotes", step3: "3. Each member confirms quantities against the price", step4: "4. The minimum is reached and commitments close", step5: "5. External payment, pickup and distribution",
     terms: "Product details", pickup: "Pickup and distribution", memberCost: "My estimated total", committed: "My committed quantity",
@@ -126,7 +126,7 @@ const wording: Record<Language, Labels> = {
 
 const kindTags: Record<NeedKind, NeedTag[]> = {
   tool: ["drill", "mower"],
-  buy: ["rice"],
+  buy: ["rice", "eggs", "vegetables"],
   skill: ["skill"]
 };
 function both(text: string): Localized { return { es: text, en: text }; }
@@ -176,8 +176,8 @@ export function CooperationHub({ language, communityId, projects, state, onChang
       es: tasks.map((skill) => taskLabel(skill, "es")).join(", "),
       en: tasks.map((skill) => taskLabel(skill, "en")).join(", ")
     } : {
-      es: ({ drill: "Taladro", mower: "Cortadora de grama", rice: "Arroz" } as Record<string, string>)[tag] ?? tag,
-      en: ({ drill: "Drill", mower: "Lawn mower", rice: "Rice" } as Record<string, string>)[tag] ?? tag
+      es: ({ drill: "Taladro", mower: "Cortadora de grama", rice: "Arroz", eggs: "Huevos", vegetables: "Vegetales" } as Record<string, string>)[tag] ?? tag,
+      en: ({ drill: "Drill", mower: "Lawn mower", rice: "Rice", eggs: "Eggs", vegetables: "Vegetables" } as Record<string, string>)[tag] ?? tag
     };
     const need: CommunityNeed = { id: id(), communityId, kind: needKind, tag: needKind === "skill" ? "skill" : tag,
       title, active: true, ...(needKind === "skill" ? { skillTaskIds: tasks } : {}), note };
@@ -230,12 +230,15 @@ export function CooperationHub({ language, communityId, projects, state, onChang
     const referencePrice = refRaw === "" ? null : Number(refRaw);
     const spec = String(values.get("specification") ?? "").trim().slice(0, 160);
     const pickup = String(values.get("pickup") ?? "").trim().slice(0, 220);
-    if (product !== "rice" || !spec || !pickup || !supplier || !Number.isFinite(price) || price <= 0 ||
+    if (!["rice", "eggs", "vegetables"].includes(product) || !spec || !pickup || !supplier || !Number.isFinite(price) || price <= 0 ||
       !Number.isInteger(min) || min < 1 || min > 100 ||
       (referencePrice !== null && (!Number.isFinite(referencePrice) || referencePrice < 0))) return;
     const buy: GroupBuy = {
-      id: id(), communityId, tag: "rice",
-      title: { es: "Compra colectiva de arroz", en: "Community rice purchase" },
+      id: id(), communityId, tag: product as NeedTag,
+      title: {
+        es: ({ rice: "Compra colectiva de arroz", eggs: "Compra colectiva de huevos", vegetables: "Compra colectiva de vegetales" } as Record<string, string>)[product],
+        en: ({ rice: "Community rice purchase", eggs: "Community egg purchase", vegetables: "Community vegetable purchase" } as Record<string, string>)[product]
+      },
       specification: both(spec), fulfillmentPlan: both(pickup),
       unit: both(language === "es" ? "unidad" : "unit"),
       supplierQuotes: [{ id: id(), supplier, pricePerUnit: price }], selectedQuoteId: "",
@@ -283,7 +286,9 @@ export function CooperationHub({ language, communityId, projects, state, onChang
           {form === "need" || form === "skill" ? <label>{t("noteOptional")}
             <textarea name="note" rows={2} maxLength={260} placeholder={t("needPlaceholder")}/></label> : null}
           {form === "buy" && <>
-            <label>{t("productCatalog")}<select name="product" defaultValue="rice"><option value="rice">{t("labelRice")}</option></select></label>
+            <label>{t("productCatalog")}<select name="product" defaultValue="rice">
+              {kindTags.buy.map((tag) => <option key={tag} value={tag}>{t("label" + tag[0].toUpperCase() + tag.slice(1))}</option>)}
+            </select></label>
             <label>{t("sampleBuySpec")}<input name="specification" maxLength={160} required placeholder={language === "es" ? "Ej. saco de 5 lb" : "E.g. 5 lb bag"} /></label>
             <label>{t("sampleBuyPickup")}<input name="pickup" maxLength={220} required placeholder={language === "es" ? "Ej. centro comunitario, sábado" : "E.g. community center, Saturday"} /></label>
             <label>{t("supplier")}<input name="supplier" maxLength={100} required/></label>
