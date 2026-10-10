@@ -1,3 +1,5 @@
+import type { CooperationState, NeedTag } from "./cooperation";
+
 export type Language = "es" | "en";
 export type Localized = { es: string; en: string };
 export type Stage = "active" | "planning" | "completed";
@@ -22,6 +24,7 @@ export type ResourceNeed = {
   title: Localized;
   quantity: number;
   pledged: number;
+  tags?: NeedTag[];
 };
 
 export type Project = {
@@ -41,6 +44,7 @@ export type DemoState = {
   projects: Project[];
   selectedCommunityId: string;
   myPledges: string[];
+  cooperation: CooperationState;
 };
 
 export function localized(value: string): Localized {

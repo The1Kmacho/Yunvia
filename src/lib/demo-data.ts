@@ -1,3 +1,4 @@
+import { initialCooperationState } from "./cooperation";
 import type { DemoState } from "./model";
 
 export const STORAGE_KEY = "yunvia-demo-v1";
@@ -6,6 +7,7 @@ export function initialDemoState(): DemoState {
   return {
     selectedCommunityId: "barrio-verde",
     myPledges: [],
+    cooperation: initialCooperationState(),
     communities: [
       {
         id: "barrio-verde",
@@ -48,7 +50,7 @@ export function initialDemoState(): DemoState {
           { id: "g5", title: { es: "Sembrar juntos", en: "Plant together" }, done: false }
         ],
         needs: [
-          { id: "g-volunteers", title: { es: "Voluntarios", en: "Volunteers" }, quantity: 4, pledged: 1 },
+          { id: "g-volunteers", tags: ["gardening"], title: { es: "Voluntarios", en: "Volunteers" }, quantity: 4, pledged: 1 },
           { id: "g-watering", title: { es: "Regaderas", en: "Watering cans" }, quantity: 2, pledged: 0 }
         ]
       },

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./hub.css";
 
 export const metadata: Metadata = {
   title: "Yunvia | Build together. Live better.",

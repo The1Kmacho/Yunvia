@@ -44,7 +44,7 @@ Data is local to this browser and can be cleared; it is not shared between devic
 
 ## Implementation
 
-Next.js 16 App Router + React 19, TypeScript, Tailwind 4 integration with a custom token-based stylesheet. Demo state is modeled in `src/lib/model.ts`, seeded in `src/lib/demo-data.ts`, and interface copy lives in `src/lib/copy.ts`.
+Next.js App Router + React, TypeScript, and a custom CSS token-based design system (no Tailwind native bindings required). Demo state is modeled in `src/lib/model.ts`, seeded in `src/lib/demo-data.ts`, and interface copy lives in `src/lib/copy.ts`.
 
 ## Production milestones
 
@@ -53,3 +53,16 @@ Next.js 16 App Router + React 19, TypeScript, Tailwind 4 integration with a cust
 3. Choose auth, hosting and database architecture.
 4. Design server-side per-community authorization, privacy defaults, and abuse reporting.
 5. Connect UI to a database and membership system, then test with pilot users.
+
+## Windows native dependency fix
+
+This branch removes the unused Tailwind/PostCSS native build dependency. If you installed the earlier prototype and encounter `@tailwindcss/oxide-win32-x64-msvc` errors, stop the dev server and clean the old install (PowerShell):
+
+```powershell
+Remove-Item -Recurse -Force node_modules,.next -ErrorAction SilentlyContinue
+Remove-Item -Force package-lock.json -ErrorAction SilentlyContinue
+npm install
+npm run dev
+```
+
+The existing interface uses hand-written CSS. Tailwind is not required for the prototype.
