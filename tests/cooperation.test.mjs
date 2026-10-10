@@ -112,3 +112,18 @@ test("skill needs and offers require identical tasks within the selected communi
   need.skillTaskIds = ["gardening.planting"];
   assert.equal(findOpportunities(state, [gardenProject], "barrio-verde").some((x) => x.kind === "project"), true);
 });
+
+test("a structured product need matches only a group buy of the same product", () => {
+  const state = initialCooperationState();
+  state.needs.push({
+    id: "need-eggs", communityId: "barrio-verde", kind: "buy", tag: "eggs",
+    title: { es: "Huevos", en: "Eggs" }, active: true, note: "Free-form note"
+  });
+  state.groupBuys.push({
+    ...state.groupBuys[0], id: "buy-eggs", tag: "eggs",
+    title: { es: "Compra colectiva de huevos", en: "Community egg purchase" }
+  });
+  const matches = findOpportunities(state, [gardenProject], "barrio-verde");
+  assert.ok(matches.some((match) => match.needId === "need-eggs" && match.targetId === "buy-eggs"));
+  assert.equal(matches.some((match) => match.needId === "need-eggs" && match.targetId === "buy-rice"), false);
+});
