@@ -8,6 +8,14 @@ Born in Puerto Rico, designed for communities everywhere.
 
 > **Project status:** Interactive browser-only prototype. Yunvia is not yet a deployed community service, registered nonprofit, or legally cleared brand.
 
+## Three-pillar interactive workflow (development branch)
+
+The `feat/integrated-opportunity-workflows` branch extends the prototype with **explainable opportunity matching**, **fictional collective purchasing commitments**, and **shared asset loan requests/approvals/returns**, connected to the existing community project experience.
+
+The new **Discover / Descubrir** page explains why suggestions were generated from community-scoped, voluntarily shared information. It is still a **local-only browser demo**; users, suppliers, quotes, commitments and savings comparisons are fictional. No real transactions or permissions exist.
+
+See [INTEGRATED_WORKFLOWS.md](INTEGRATED_WORKFLOWS.md) for walkthroughs, limitations, and tests.
+
 ## Interactive web prototype
 
 The first interactive UI is available on the `feat/community-prototype` branch for review. It includes **Spanish/English language switching, demo communities, project creation, milestones, resource needs, and voluntary help pledges**, with a mobile-friendly visual design.
