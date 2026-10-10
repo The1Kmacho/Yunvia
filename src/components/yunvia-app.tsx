@@ -2,6 +2,8 @@
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { initialDemoState, STORAGE_KEY } from "@/lib/demo-data";
+import { initialCooperationState, isCooperationState } from "@/lib/cooperation";
+import { CooperationHub } from "@/components/cooperation-hub";
 import { translate } from "@/lib/copy";
 import {
   localized,
@@ -15,12 +17,13 @@ import {
   type ResourceNeed
 } from "@/lib/model";
 
-type Page = "home" | "projects" | "resources" | "community";
+type Page = "home" | "discover" | "projects" | "resources" | "community";
 type Modal = { type: "project" } | { type: "community" } | { type: "detail"; projectId: string } | null;
-type IconName = "home" | "projects" | "resources" | "community" | "plus" | "arrow" | "close" | "check" | "leaf" | "pin" | "chevron" | "reset" | "heart" | "spark" | "menu";
+type IconName = "discover" | "home" | "projects" | "resources" | "community" | "plus" | "arrow" | "close" | "check" | "leaf" | "pin" | "chevron" | "reset" | "heart" | "spark" | "menu";
 
 function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
   const paths: Record<IconName, ReactNode> = {
+    discover: <><circle cx="12" cy="12" r="9" /><path d="m10 10 7-3-3 7-7 3z" /></>,
     home: <><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" /></>,
     projects: <><rect x="4" y="4" width="16" height="16" rx="3" /><path d="M8 9h8M8 13h8M8 17h4" /></>,
     resources: <><path d="M4 7h16v13H4zM2 7l3-4h14l3 4M12 7v13M4 13h16" /></>,
@@ -40,7 +43,7 @@ function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
   return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
 }
 
-const glyphs: Record<Page, IconName> = { home: "home", projects: "projects", resources: "resources", community: "community" };
+const glyphs: Record<Page, IconName> = { home: "home", discover: "discover", projects: "projects", resources: "resources", community: "community" };
 const categoryEmoji: Record<Category, string> = { nature: "🌱", sharing: "🧰", food: "🥬", other: "✳" };
 
 function isDemoState(value: unknown): value is DemoState {
@@ -157,7 +160,7 @@ export function YunviaApp() {
         const saved = window.localStorage.getItem(STORAGE_KEY);
         if (saved) {
           const parsed: unknown = JSON.parse(saved);
-          if (isDemoState(parsed)) setDemo(parsed);
+          if (isDemoState(parsed)) setDemo({ ...parsed, cooperation: isCooperationState(parsed.cooperation) ? parsed.cooperation : initialCooperationState() });
         }
         const savedLanguage = window.localStorage.getItem("yunvia-language");
         if (savedLanguage === "en" || savedLanguage === "es") setLanguage(savedLanguage);
@@ -326,7 +329,7 @@ export function YunviaApp() {
         </div>
         <div className="sidebar-label">{t("navHeading")}</div>
         <nav aria-label={t("navHeading")} className="sidebar-nav">
-          {(["home", "projects", "resources", "community"] as Page[]).map((item) =>
+          {(["home", "discover", "projects", "resources", "community"] as Page[]).map((item) =>
             <button type="button" key={item} className={"nav-item" + (page === item ? " nav-active" : "")}
               aria-current={page === item ? "page" : undefined} onClick={() => navigate(item)}>
               <Icon name={glyphs[item]} size={20} /> {t(item)}
@@ -379,7 +382,7 @@ export function YunviaApp() {
                 <div className="hero-eyebrow"><Icon name="spark" size={16} /> {t("heroEyebrow")}</div>
                 <h2 id="hero-title">{t("heroTitle")}</h2>
                 <p>{t("heroBody")}</p>
-                <button className="button button-cream" type="button" onClick={() => navigate("projects")}>{t("explore")} <Icon name="arrow" size={17} /></button>
+                <button className="button button-cream" type="button" onClick={() => navigate("discover")}>{t("exploreHub")} <Icon name="arrow" size={17} /></button>
               </div>
               <div className="hero-art" aria-hidden="true">
                 <div className="hero-sun" />
@@ -418,6 +421,15 @@ export function YunviaApp() {
               </section>
             </div>
           </>}
+
+          {page === "discover" && <CooperationHub
+            language={language}
+            communityId={current.id}
+            projects={communityProjects}
+            state={demo.cooperation}
+            onChange={(operation) => setDemo((before) => ({ ...before, cooperation: operation(before.cooperation) }))}
+            onOpenProject={(projectId) => setModal({ type: "detail", projectId })}
+          />}
 
           {page === "projects" && <>
             <div className="page-head"><div><p className="overline">{current?.name}</p><h1>{t("projectsTitle")}</h1><p className="muted large">{t("projectsCopy")}</p></div>
