@@ -1,4 +1,5 @@
 import type { CooperationState, NeedTag } from "./cooperation";
+import type { SkillTaskId } from "./skills";
 
 export type Language = "es" | "en";
 export type Localized = { es: string; en: string };
@@ -25,6 +26,7 @@ export type ResourceNeed = {
   quantity: number;
   pledged: number;
   tags?: NeedTag[];
+  skillTaskIds?: SkillTaskId[];
 };
 
 export type Project = {
