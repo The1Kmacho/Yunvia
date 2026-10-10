@@ -1,4 +1,4 @@
-import { matchingTasks, taskLabel, normalizeSkillSelection, type SkillTaskId, type ExperienceLevel, type ContributionMode } from "./skills";
+import { matchingTasks, taskLabel, normalizeSkillSelection, type SkillTaskId, type ExperienceLevel, type ContributionMode } from "./skills.ts";
 import type { Localized, Project } from "./model";
 
 export type NeedKind = "tool" | "buy" | "skill";
