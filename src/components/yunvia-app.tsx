@@ -2,8 +2,10 @@
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { initialDemoState, STORAGE_KEY } from "@/lib/demo-data";
-import { initialCooperationState, isCooperationState } from "@/lib/cooperation";
+import { initialCooperationState, isCooperationState, upgradeCooperationState } from "@/lib/cooperation";
 import { CooperationHub } from "@/components/cooperation-hub";
+import { SkillPicker } from "@/components/skill-picker";
+import { taskLabel, type SkillTaskId } from "@/lib/skills";
 import { translate } from "@/lib/copy";
 import {
   localized,
@@ -148,6 +150,8 @@ export function YunviaApp() {
   const [demo, setDemo] = useState<DemoState>(initialDemoState);
   const [hydrated, setHydrated] = useState(false);
   const [modal, setModal] = useState<Modal>(null);
+  const [projectTasks, setProjectTasks] = useState<SkillTaskId[]>([]);
+  const [additionalTasks, setAdditionalTasks] = useState<SkillTaskId[]>([]);
   const [toast, setToast] = useState("");
   const [mobileMenu, setMobileMenu] = useState(false);
   const t = (key: string) => translate(language, key);
@@ -160,7 +164,16 @@ export function YunviaApp() {
         const saved = window.localStorage.getItem(STORAGE_KEY);
         if (saved) {
           const parsed: unknown = JSON.parse(saved);
-          if (isDemoState(parsed)) setDemo({ ...parsed, cooperation: isCooperationState(parsed.cooperation) ? parsed.cooperation : initialCooperationState() });
+          if (isDemoState(parsed)) setDemo({
+            ...parsed,
+            cooperation: isCooperationState(parsed.cooperation)
+              ? upgradeCooperationState(parsed.cooperation) : initialCooperationState(),
+            projects: parsed.projects.map((project) => ({
+              ...project,
+              needs: project.needs.map((need) => need.id === "g-volunteers" && !need.skillTaskIds
+                ? { ...need, skillTaskIds: ["gardening.planting" as const] } : need)
+            }))
+          });
         }
         const savedLanguage = window.localStorage.getItem("yunvia-language");
         if (savedLanguage === "en" || savedLanguage === "es") setLanguage(savedLanguage);
@@ -238,8 +251,14 @@ export function YunviaApp() {
     const category = field(form, "category") as Category;
     const needsText = field(form, "needs");
     if (!title || !description) { setToast(t("required")); return; }
-    const needs: ResourceNeed[] = needsText.split(",").map((item) => item.trim()).filter(Boolean).slice(0, 12)
+    const unclassifiedNeeds: ResourceNeed[] = needsText.split(",").map((item) => item.trim()).filter(Boolean).slice(0, 12)
       .map((name) => ({ id: crypto.randomUUID(), title: localized(name), quantity: 1, pledged: 0 }));
+    // Human text is only descriptive. These taxonomy IDs are the only skills that can match.
+    const classifiedNeeds: ResourceNeed[] = projectTasks.map((task) => ({
+      id: crypto.randomUUID(), title: { es: taskLabel(task, "es"), en: taskLabel(task, "en") },
+      quantity: 1, pledged: 0, skillTaskIds: [task]
+    }));
+    const needs = [...unclassifiedNeeds, ...classifiedNeeds];
     const project: Project = {
       id: crypto.randomUUID(), communityId: current.id,
       title: localized(title), description: localized(description),
@@ -250,6 +269,7 @@ export function YunviaApp() {
     };
     setDemo((before) => ({ ...before, projects: [project, ...before.projects] }));
     setModal({ type: "detail", projectId: project.id });
+    setProjectTasks([]);
     setPage("projects");
     setToast(t("createdProject"));
   }
@@ -290,13 +310,20 @@ export function YunviaApp() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const title = field(form, "need");
-    if (!title) return;
-    const need: ResourceNeed = { id: crypto.randomUUID(), title: localized(title), quantity: 1, pledged: 0 };
+    if (!title && additionalTasks.length === 0) return;
+    const needs: ResourceNeed[] = [
+      ...(title ? [{ id: crypto.randomUUID(), title: localized(title), quantity: 1, pledged: 0 }] : []),
+      ...additionalTasks.map((task) => ({ id: crypto.randomUUID(),
+        title: { es: taskLabel(task, "es"), en: taskLabel(task, "en") },
+        quantity: 1, pledged: 0, skillTaskIds: [task]
+      }))
+    ];
     setDemo((before) => ({
       ...before, projects: before.projects.map((project) => project.id === projectId ?
-        { ...project, needs: [...project.needs, need] } : project)
+        { ...project, needs: [...project.needs, ...needs] } : project)
     }));
     event.currentTarget.reset();
+    setAdditionalTasks([]);
     setToast(t("needAdded"));
   }
 
@@ -488,6 +515,7 @@ export function YunviaApp() {
           <label>{t("category")}<select name="category" defaultValue="nature">
             {(["nature", "sharing", "food", "other"] as Category[]).map((value) => <option key={value} value={value}>{t(value)}</option>)}
           </select></label>
+          <SkillPicker language={language} selected={projectTasks} onChange={setProjectTasks}/>
           <label>{t("projectNeeds")} <small>{t("optional")}</small><input name="needs" maxLength={300} placeholder={t("needsPlaceholder")} /><small>{t("needsHelp")}</small></label>
           <div className="form-actions"><button type="button" className="button button-outline" onClick={() => setModal(null)}>{t("cancel")}</button><button type="submit" className="button button-primary">{t("publishProject")} <Icon name="arrow" size={16} /></button></div>
         </form>
@@ -521,7 +549,10 @@ export function YunviaApp() {
                 onPledge={() => togglePledge(detailProject.id, need.id)} />
             )}</div> : <p className="muted">{t("noNeeds")}</p>}
             <form className="inline-need-form" onSubmit={(event) => addNeed(event, detailProject.id)}>
-              <label htmlFor="new-need">{t("addNeed")}</label><div><input id="new-need" name="need" required maxLength={100} placeholder={t("needPlaceholder")} /><button type="submit" className="button button-outline"><Icon name="plus" size={17} />{t("addNeed")}</button></div>
+              <SkillPicker language={language} selected={additionalTasks} onChange={setAdditionalTasks}/>
+              <label htmlFor="new-need">{t("addNeed")} ({t("optional")})</label>
+              <div><input id="new-need" name="need" maxLength={100} placeholder={t("needPlaceholder")} />
+              <button type="submit" className="button button-outline"><Icon name="plus" size={17} />{t("addNeed")}</button></div>
             </form>
           </section>
         </div>

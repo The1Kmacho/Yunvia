@@ -1,7 +1,8 @@
+import { matchingTasks, taskLabel, normalizeSkillSelection, type SkillTaskId, type ExperienceLevel, type ContributionMode } from "./skills.ts";
 import type { Localized, Project } from "./model";
 
 export type NeedKind = "tool" | "buy" | "skill";
-export type NeedTag = "drill" | "mower" | "rice" | "gardening" | "tutoring";
+export type NeedTag = "drill" | "mower" | "rice" | "gardening" | "tutoring" | "skill" | "eggs" | "vegetables";
 export type CommunityNeed = {
   id: string;
   communityId: string;
@@ -9,6 +10,8 @@ export type CommunityNeed = {
   tag: NeedTag;
   title: Localized;
   active: boolean;
+  skillTaskIds?: SkillTaskId[];
+  note?: string;
 };
 
 export type Capability = {
@@ -18,6 +21,10 @@ export type Capability = {
   title: Localized;
   memberAlias: string;
   optedIn: boolean;
+  skillTaskIds?: SkillTaskId[];
+  experience?: ExperienceLevel;
+  mode?: ContributionMode;
+  note?: string;
 };
 
 export type LoanStatus = "requested" | "approved" | "returned";
@@ -49,6 +56,8 @@ export type GroupBuy = {
   outsideUnits: number;
   myUnits: number;
   phase: "collecting" | "locked" | "fulfilled";
+  specification?: Localized;
+  fulfillmentPlan?: Localized;
 };
 export type CooperationState = {
   needs: CommunityNeed[];
@@ -70,12 +79,12 @@ export function initialCooperationState(): CooperationState {
     needs: [
       { id: "need-drill", communityId: "barrio-verde", kind: "tool", tag: "drill", title: { es: "Necesito un taladro para arreglos", en: "Need a drill for home repairs" }, active: true },
       { id: "need-rice", communityId: "barrio-verde", kind: "buy", tag: "rice", title: { es: "Comprar arroz en conjunto", en: "Buy rice with other households" }, active: true },
-      { id: "need-garden", communityId: "barrio-verde", kind: "skill", tag: "gardening", title: { es: "Apoyo para sembrar el huerto", en: "Help planting the garden" }, active: true },
+      { id: "need-garden", communityId: "barrio-verde", kind: "skill", tag: "gardening", skillTaskIds: ["gardening.planting"], title: { es: "Apoyo para sembrar el huerto", en: "Help planting the garden" }, active: true },
       { id: "need-mower", communityId: "comunidad-sol", kind: "tool", tag: "mower", title: { es: "Necesito una máquina de cortar grama", en: "Need a lawn mower" }, active: true }
     ],
     capabilities: [
-      { id: "cap-garden", communityId: "barrio-verde", tag: "gardening", title: { es: "Experiencia con huertos", en: "Experience with gardens" }, memberAlias: "Vecina Ana (demo)", optedIn: true },
-      { id: "cap-private", communityId: "comunidad-sol", tag: "tutoring", title: { es: "Tutorías disponibles", en: "Tutoring available" }, memberAlias: "Perfil privado", optedIn: false }
+      { id: "cap-garden", communityId: "barrio-verde", tag: "gardening", title: { es: "Experiencia con huertos", en: "Experience with gardens" }, memberAlias: "Vecina Ana (demo)", optedIn: true, skillTaskIds: ["gardening.planting", "gardening.soil"], experience: "experienced", mode: "volunteer" },
+      { id: "cap-private", communityId: "comunidad-sol", tag: "tutoring", title: { es: "Tutorías disponibles", en: "Tutoring available" }, memberAlias: "Perfil privado", optedIn: false, skillTaskIds: ["tutoring.math"], experience: "experienced", mode: "volunteer" }
     ],
     assets: [
       { id: "asset-drill", communityId: "barrio-verde", tag: "drill", title: { es: "Taladro inalámbrico", en: "Cordless drill" }, description: { es: "Para reparaciones pequeñas; coordinar entrega.", en: "For small repairs; arrange pickup." }, ownerAlias: "Carlos (demo)", optedIn: true, loan: null },
@@ -85,7 +94,7 @@ export function initialCooperationState(): CooperationState {
       { id: "buy-rice", communityId: "barrio-verde", tag: "rice", title: { es: "Compra colectiva de arroz", en: "Community rice purchase" },
         unit: { es: "saco", en: "bag" },
         supplierQuotes: [{ id: "quote-a", supplier: "Suplidor A (ejemplo)", pricePerUnit: 4.25 }, { id: "quote-b", supplier: "Suplidor B (ejemplo)", pricePerUnit: 4.9 }],
-        selectedQuoteId: "quote-a", referencePrice: 6, minimumUnits: 12, outsideUnits: 11, myUnits: 0, phase: "collecting" }
+        selectedQuoteId: "quote-a", referencePrice: 6, minimumUnits: 12, outsideUnits: 11, myUnits: 0, phase: "collecting", specification: { es: "Saco de arroz de 5 lb (ejemplo)", en: "5 lb bag of rice (example)" }, fulfillmentPlan: { es: "Recogido comunitario por acordar; pagos directamente con el organizador externo.", en: "Community pickup TBD; payments arranged externally with organizer." } }
     ]
   };
 }
@@ -126,9 +135,12 @@ export function setMyUnits(state: CooperationState, buyId: string, units: number
 }
 
 export function chooseQuote(state: CooperationState, buyId: string, quoteId: string): CooperationState {
+  // Quote changes invalidate every prior commitment: nobody agreed to the new terms.
   return { ...state, groupBuys: state.groupBuys.map((buy) =>
     buy.id === buyId && buy.phase === "collecting" && buy.supplierQuotes.some((quote) => quote.id === quoteId)
-      ? { ...buy, selectedQuoteId: quoteId } : buy) };
+      ? buy.selectedQuoteId === quoteId ? buy
+        : { ...buy, selectedQuoteId: quoteId, outsideUnits: 0, myUnits: 0 }
+      : buy) };
 }
 
 export function advanceGroupBuy(state: CooperationState, buyId: string): CooperationState {
@@ -182,19 +194,41 @@ export function findOpportunities(
         });
       }
     }
-    if (need.kind === "skill") {
-      const hasOptedInSkill = state.capabilities.some((c) =>
-        c.communityId === communityId && c.tag === need.tag && c.optedIn);
-      if (!hasOptedInSkill) continue;
+    if (need.kind === "skill" && need.skillTaskIds?.length) {
+      // Human-written descriptions, experience claims and broad category tags are never matching keys.
+      const eligible = state.capabilities.filter((cap) => cap.optedIn &&
+        cap.communityId === communityId && matchingTasks(need.skillTaskIds, cap.skillTaskIds).length > 0);
+      if (eligible.length === 0) continue;
       for (const project of projects) {
         if (project.communityId !== communityId) continue;
-        if (!project.needs.some((n) => n.pledged < n.quantity && n.tags?.includes(need.tag))) continue;
+        const needed = project.needs.find((resource) => resource.pledged < resource.quantity &&
+          matchingTasks(need.skillTaskIds, resource.skillTaskIds).length > 0 &&
+          eligible.some((cap) => matchingTasks(resource.skillTaskIds, cap.skillTaskIds).length > 0));
+        if (!needed) continue;
+        const taskId = matchingTasks(need.skillTaskIds, needed.skillTaskIds)[0];
         matched.push({ id: need.id + ":" + project.id, kind: "project", needId: need.id, targetId: project.id,
           title: { es: "Hay colaboradores para este proyecto", en: "Potential project collaborators found" },
-          explanation: { es: "Hay una habilidad compartida voluntariamente y una necesidad abierta en “" + project.title.es + "”.",
-            en: "An opted-in skill matches an open need in “" + project.title.en + "”." } });
+          explanation: {
+            es: "La actividad “" + taskLabel(taskId, "es") + "” fue seleccionada explícitamente por quien ofrece ayuda y coincide con una necesidad de “" + project.title.es + "”.",
+            en: "The task “" + taskLabel(taskId, "en") + "” was explicitly offered and matches an open need in “" + project.title.en + "”."
+          } });
       }
     }
   }
   return matched;
+}
+
+/** Migrates older local-demo profiles conservatively: unknown, free-text skills remain unmatched. */
+export function upgradeCooperationState(value: CooperationState): CooperationState {
+  return {
+    ...value,
+    needs: value.needs.map((need) => need.id === "need-garden" && !need.skillTaskIds
+      ? { ...need, skillTaskIds: ["gardening.planting"] as SkillTaskId[] } : need),
+    capabilities: value.capabilities.map((cap) => ({
+      ...cap,
+      skillTaskIds: cap.id === "cap-garden" && !cap.skillTaskIds
+        ? (["gardening.planting"] as SkillTaskId[])
+        : normalizeSkillSelection(cap.skillTaskIds ?? [])
+    }))
+  };
 }

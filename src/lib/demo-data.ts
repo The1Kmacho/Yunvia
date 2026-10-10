@@ -50,7 +50,7 @@ export function initialDemoState(): DemoState {
           { id: "g5", title: { es: "Sembrar juntos", en: "Plant together" }, done: false }
         ],
         needs: [
-          { id: "g-volunteers", tags: ["gardening"], title: { es: "Voluntarios", en: "Volunteers" }, quantity: 4, pledged: 1 },
+          { id: "g-volunteers", tags: ["gardening"], skillTaskIds: ["gardening.planting"], title: { es: "Voluntarios", en: "Volunteers" }, quantity: 4, pledged: 1 },
           { id: "g-watering", title: { es: "Regaderas", en: "Watering cans" }, quantity: 2, pledged: 0 }
         ]
       },
