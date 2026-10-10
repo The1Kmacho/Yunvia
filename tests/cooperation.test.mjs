@@ -7,7 +7,7 @@ import {
 } from "../src/lib/cooperation.ts";
 
 const gardenProject = {
-  id: "garden", communityId: "barrio-verde",
+  id: "garden", communityId: "barrio-verde", title: { es: "Huerto comunitario", en: "Community garden" },
   needs: [{ id: "g-volunteers", pledged: 1, quantity: 4, tags: ["gardening"] }]
 };
 
