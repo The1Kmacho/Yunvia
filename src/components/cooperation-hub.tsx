@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { SkillPicker } from "./skill-picker";
+import { normalizeSkillSelection, taskLabel, type SkillTaskId, type ExperienceLevel, type ContributionMode } from "@/lib/skills";
 import {
   advanceGroupBuy, advanceLoan, chooseQuote, findOpportunities, potentialGrossDifference,
   requestAsset, selectedQuote, setMyUnits, totalUnits,
@@ -91,7 +93,7 @@ const wording: Record<Language, Labels> = {
 const kindTags: Record<NeedKind, NeedTag[]> = {
   tool: ["drill", "mower"],
   buy: ["rice"],
-  skill: ["gardening", "tutoring"]
+  skill: ["skill"]
 };
 function both(text: string): Localized { return { es: text, en: text }; }
 function number(value: number, locale: Language) { return new Intl.NumberFormat(locale === "es" ? "es-PR" : "en-US", { maximumFractionDigits: 2 }).format(value); }
@@ -109,6 +111,8 @@ export function CooperationHub({ language, communityId, projects, state, onChang
   const [tab, setTab] = useState<HubTab>("discover");
   const [form, setForm] = useState<"need" | "skill" | "asset" | "buy" | null>(null);
   const [needKind, setNeedKind] = useState<NeedKind>("tool");
+  const [selectedTasks, setSelectedTasks] = useState<SkillTaskId[]>([]);
+  const [buyRole, setBuyRole] = useState<"member" | "organizer">("member");
   const [unitsDraft, setUnitsDraft] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState("");
   const t = (key: string) => wording[language][key] ?? key;
@@ -128,14 +132,26 @@ export function CooperationHub({ language, communityId, projects, state, onChang
   }
   function needSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const title = String(formData.get("title") ?? "").trim();
-    const tag = String(formData.get("tag")) as NeedTag;
-    if (!title || !kindTags[needKind].includes(tag)) return;
-    const newNeed: CommunityNeed = { id: id(), communityId, kind: needKind, tag, title: both(title), active: true };
-    update((old) => ({ ...old, needs: [newNeed, ...old.needs] }), t("needPublished"));
+    const data = new FormData(event.currentTarget);
+    const note = String(data.get("note") ?? "").trim().slice(0, 260);
+    const tag = String(data.get("tag") ?? "") as NeedTag;
+    const tasks = normalizeSkillSelection(selectedTasks);
+    if (needKind === "skill" && tasks.length === 0) { setNotice(t("selectedSkillNotice")); return; }
+    if (needKind !== "skill" && !kindTags[needKind].includes(tag)) return;
+    const title: Localized = needKind === "skill" ? {
+      es: tasks.map((skill) => taskLabel(skill, "es")).join(", "),
+      en: tasks.map((skill) => taskLabel(skill, "en")).join(", ")
+    } : {
+      es: ({ drill: "Taladro", mower: "Cortadora de grama", rice: "Arroz" } as Record<string, string>)[tag] ?? tag,
+      en: ({ drill: "Drill", mower: "Lawn mower", rice: "Rice" } as Record<string, string>)[tag] ?? tag
+    };
+    const need: CommunityNeed = { id: id(), communityId, kind: needKind, tag: needKind === "skill" ? "skill" : tag,
+      title, active: true, ...(needKind === "skill" ? { skillTaskIds: tasks } : {}), note };
+    update((old) => ({ ...old, needs: [need, ...old.needs] }), t("needPublished"));
+    setSelectedTasks([]);
     setForm(null);
   }
+
   function assetSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const values = new FormData(event.currentTarget);
@@ -151,28 +167,43 @@ export function CooperationHub({ language, communityId, projects, state, onChang
   function skillSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const values = new FormData(event.currentTarget);
-    const title = String(values.get("title") ?? "").trim();
-    const tag = String(values.get("tag")) as NeedTag;
-    if (!title || !["gardening", "tutoring"].includes(tag)) return;
+    const tasks = normalizeSkillSelection(selectedTasks);
+    if (tasks.length === 0 || values.get("consent") !== "yes") { setNotice(t("selectedSkillNotice")); return; }
+    const experience = String(values.get("experience")) as ExperienceLevel;
+    const mode = String(values.get("mode")) as ContributionMode;
+    if (!["beginner", "experienced", "professional"].includes(experience) ||
+      !["volunteer", "exchange", "paid"].includes(mode)) return;
+    const note = String(values.get("note") ?? "").trim().slice(0, 260);
     update((old) => ({ ...old, capabilities: [{
-      id: id(), communityId, tag, title: both(title), memberAlias: language === "es" ? "Tú (demo)" : "You (demo)", optedIn: true
+      id: id(), communityId, tag: "skill",
+      title: { es: tasks.map((task) => taskLabel(task, "es")).join(", "),
+        en: tasks.map((task) => taskLabel(task, "en")).join(", ") },
+      memberAlias: language === "es" ? "Tú (demo)" : "You (demo)", optedIn: true,
+      skillTaskIds: tasks, experience, mode, note
     }, ...old.capabilities] }), t("skillPublished"));
+    setSelectedTasks([]);
     setForm(null);
   }
+
   function buySubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const values = new FormData(event.currentTarget);
-    const title = String(values.get("title") ?? "").trim();
+    const product = String(values.get("product") ?? "");
     const supplier = String(values.get("supplier") ?? "").trim();
     const price = Number(values.get("price"));
     const min = Number(values.get("min"));
     const refRaw = String(values.get("reference") ?? "").trim();
     const referencePrice = refRaw === "" ? null : Number(refRaw);
-    if (!title || !supplier || !Number.isFinite(price) || price <= 0 ||
+    const spec = String(values.get("specification") ?? "").trim().slice(0, 160);
+    const pickup = String(values.get("pickup") ?? "").trim().slice(0, 220);
+    if (product !== "rice" || !spec || !pickup || !supplier || !Number.isFinite(price) || price <= 0 ||
       !Number.isInteger(min) || min < 1 || min > 100 ||
       (referencePrice !== null && (!Number.isFinite(referencePrice) || referencePrice < 0))) return;
     const buy: GroupBuy = {
-      id: id(), communityId, tag: "rice", title: both(title), unit: both(language === "es" ? "unidad" : "unit"),
+      id: id(), communityId, tag: "rice",
+      title: { es: "Compra colectiva de arroz", en: "Community rice purchase" },
+      specification: both(spec), fulfillmentPlan: both(pickup),
+      unit: both(language === "es" ? "unidad" : "unit"),
       supplierQuotes: [{ id: id(), supplier, pricePerUnit: price }], selectedQuoteId: "",
       referencePrice, minimumUnits: min, outsideUnits: 0, myUnits: 0, phase: "collecting"
     };
@@ -180,6 +211,7 @@ export function CooperationHub({ language, communityId, projects, state, onChang
     update((old) => ({ ...old, groupBuys: [buy, ...old.groupBuys] }), t("buyPublished"));
     setForm(null);
   }
+
   function renderForm() {
     if (!form) return null;
     return <div className="hub-form-overlay" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setForm(null); }}>
