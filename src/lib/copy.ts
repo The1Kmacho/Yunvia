@@ -3,6 +3,8 @@ import type { Language } from "./model";
 export const copy: Record<Language, Record<string, string>> = {
   es: {
     home: "Inicio",
+    discover: "Descubrir",
+    exploreHub: "Explorar oportunidades",
     projects: "Proyectos",
     resources: "Recursos",
     community: "Mi comunidad",
@@ -126,6 +128,8 @@ export const copy: Record<Language, Record<string, string>> = {
   },
   en: {
     home: "Home",
+    discover: "Discover",
+    exploreHub: "Discover opportunities",
     projects: "Projects",
     resources: "Resources",
     community: "My community",
