@@ -214,29 +214,56 @@ export function CooperationHub({ language, communityId, projects, state, onChang
 
   function renderForm() {
     if (!form) return null;
+    const titleKey = form === "need" ? "newNeed" : form === "skill" ? "addSkill" : form === "asset" ? "addAsset" : "newBuy";
     return <div className="hub-form-overlay" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setForm(null); }}>
-      <section role="dialog" aria-modal="true" aria-label={t(form === "need" ? "newNeed" : form === "skill" ? "addSkill" : form === "asset" ? "addAsset" : "newBuy")} className="hub-form-card">
-        <div className="hub-form-head"><h3>{t(form === "need" ? "newNeed" : form === "skill" ? "addSkill" : form === "asset" ? "addAsset" : "newBuy")}</h3><button type="button" onClick={() => setForm(null)} aria-label={t("close")}>×</button></div>
-        <form onSubmit={form === "need" ? needSubmit : form === "skill" ? skillSubmit : form === "asset" ? assetSubmit : buySubmit} className="hub-form-fields">
-          {form === "need" && <label>{t("type")}<select value={needKind} onChange={(event) => setNeedKind(event.target.value as NeedKind)}>
+      <section role="dialog" aria-modal="true" aria-label={t(titleKey)} className="hub-form-card">
+        <div className="hub-form-head"><h3>{t(titleKey)}</h3>
+          <button type="button" onClick={() => setForm(null)} aria-label={t("close")}>×</button></div>
+        <form className="hub-form-fields" onSubmit={form === "need" ? needSubmit : form === "skill" ? skillSubmit : form === "asset" ? assetSubmit : buySubmit}>
+          {form === "need" && <label>{t("type")}<select value={needKind} onChange={(event) => { setNeedKind(event.target.value as NeedKind); setSelectedTasks([]); }}>
             <option value="tool">{t("tool")}</option><option value="buy">{t("groceries")}</option><option value="skill">{t("skills")}</option>
           </select></label>}
-          {(form === "need" || form === "skill" || form === "asset") && <label>{t("typeItem")}<select key={form + needKind} name="tag">
-            {(form === "need" ? kindTags[needKind] : form === "skill" ? kindTags.skill : kindTags.tool).map((tag) =>
-              <option key={tag} value={tag}>{t("label" + tag[0].toUpperCase() + tag.slice(1))}</option>)}
-          </select></label>}
-          <label>{form === "need" ? t("needPrompt") : form === "asset" ? t("assetName") : form === "buy" ? t("buyTitle") : t("skillLabel")}
-            <input name="title" maxLength={110} required autoFocus placeholder={form === "need" ? t("needPlaceholder") : undefined}/></label>
-          {form === "asset" && <label>{t("assetDescription")}<textarea name="description" rows={3} maxLength={300}/></label>}
+          {((form === "need" && needKind !== "skill") || form === "asset") && <label>{t("typeItem")}
+            <select key={form + needKind} name="tag">
+              {(form === "asset" ? kindTags.tool : kindTags[needKind]).map((tag) =>
+                <option key={tag} value={tag}>{t("label" + tag[0].toUpperCase() + tag.slice(1))}</option>)}
+            </select></label>}
+          {(form === "skill" || (form === "need" && needKind === "skill")) &&
+            <SkillPicker language={language} selected={selectedTasks} onChange={setSelectedTasks} />}
+          {form === "asset" && <>
+            <label>{t("assetName")}<input name="title" maxLength={110} required autoFocus /></label>
+            <label>{t("assetDescription")}<textarea name="description" rows={3} maxLength={300}/></label>
+          </>}
+          {form === "skill" && <>
+            <div className="hub-two-fields">
+              <label>{t("skillLevel")}<select name="experience" defaultValue="beginner">
+                {(["beginner","experienced","professional"] as ExperienceLevel[]).map((value) => <option value={value} key={value}>{t(value)}</option>)}
+              </select></label>
+              <label>{t("skillMode")}<select name="mode" defaultValue="volunteer">
+                {(["volunteer","exchange","paid"] as ContributionMode[]).map((value) => <option value={value} key={value}>{t(value)}</option>)}
+              </select></label>
+            </div>
+            <p className="hub-hint">{t("skillSelfReport")}</p>
+            <label className="hub-checkline"><input required type="checkbox" name="consent" value="yes"/> {t("skillConsent")}</label>
+          </>}
+          {form === "need" || form === "skill" ? <label>{t("noteOptional")}
+            <textarea name="note" rows={2} maxLength={260} placeholder={t("needPlaceholder")}/></label> : null}
           {form === "buy" && <>
+            <label>{t("productCatalog")}<select name="product" defaultValue="rice"><option value="rice">{t("labelRice")}</option></select></label>
+            <label>{t("sampleBuySpec")}<input name="specification" maxLength={160} required placeholder={language === "es" ? "Ej. saco de 5 lb" : "E.g. 5 lb bag"} /></label>
+            <label>{t("sampleBuyPickup")}<input name="pickup" maxLength={220} required placeholder={language === "es" ? "Ej. centro comunitario, sábado" : "E.g. community center, Saturday"} /></label>
             <label>{t("supplier")}<input name="supplier" maxLength={100} required/></label>
-            <div className="hub-two-fields"><label>{t("quotePrice")}<input name="price" required type="number" min="0.01" step="0.01"/></label>
-              <label>{t("minQty")}<input name="min" required type="number" min="1" max="100" step="1" defaultValue={5}/></label></div>
+            <div className="hub-two-fields">
+              <label>{t("quotePrice")}<input name="price" required type="number" min="0.01" step="0.01"/></label>
+              <label>{t("minQty")}<input name="min" required type="number" min="1" max="100" step="1" defaultValue={5}/></label>
+            </div>
             <label>{t("basePrice")}<input name="reference" type="number" min="0" step="0.01"/></label>
           </>}
           <p className="hub-hint">{t(form === "skill" ? "skillDesc" : "localOnly")}</p>
-          <div className="hub-form-actions"><button type="button" className="hub-button outline" onClick={() => setForm(null)}>{t("close")}</button>
-            <button type="submit" className="hub-button filled">{t("publish")}</button></div>
+          <div className="hub-form-actions">
+            <button type="button" className="hub-button outline" onClick={() => setForm(null)}>{t("close")}</button>
+            <button type="submit" className="hub-button filled" disabled={(form === "skill" || (form === "need" && needKind === "skill")) && selectedTasks.length === 0}>{t("publish")}</button>
+          </div>
         </form>
       </section>
     </div>;
@@ -265,10 +292,13 @@ export function CooperationHub({ language, communityId, projects, state, onChang
       </div> : <div className="hub-empty">{t("none")}</div>}
       <div className="hub-two-col">
         <section className="hub-surface"><div className="hub-heading-row small"><div><h2>{t("existingNeeds")}</h2><p>{t("activeNeed")}</p></div></div>
-          {needs.length ? needs.map((need) => <div className="hub-simple-row" key={need.id}><span>◌</span><div><strong>{need.title[language]}</strong><small>{t(need.kind === "tool" ? "tool" : need.kind === "buy" ? "groceries" : "skills")}</small></div></div>)
+          {needs.length ? needs.map((need) => <div className="hub-simple-row" key={need.id}><span>◌</span><div><strong>{need.title[language]}</strong><small>{t(need.kind === "tool" ? "tool" : need.kind === "buy" ? "groceries" : "skills")}{need.note ? " · " + need.note : ""}</small></div></div>)
             : <p className="hub-hint">{t("nothingHere")}</p>}</section>
         <section className="hub-surface"><div className="hub-heading-row small"><div><h2>{t("addSkill")}</h2><p>{t("explain")}</p></div><button className="hub-button outline" type="button" onClick={() => setForm("skill")}>+ {t("publish")}</button></div>
-          {capabilities.length ? capabilities.map((cap) => <div className="hub-simple-row" key={cap.id}><span>✳</span><div><strong>{cap.title[language]}</strong><small>{cap.memberAlias} · {t("optedIn")}</small></div></div>)
+          {capabilities.length ? capabilities.map((cap) => <div className="hub-simple-row" key={cap.id}>
+        <span>✳</span><div><strong>{(cap.skillTaskIds ?? []).length ? cap.skillTaskIds!.map((task) => taskLabel(task, language)).join(", ") : t("unindexedSkill")}</strong>
+        <small>{cap.memberAlias} · {t("optedIn")}{cap.experience ? " · " + t(cap.experience) : ""}{cap.mode ? " · " + t(cap.mode) : ""}</small>
+        {cap.note && <small>{cap.note}</small>}</div></div>)
             : <p className="hub-hint">{t("nothingHere")}</p>}</section>
       </div>
     </>}
