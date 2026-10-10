@@ -339,7 +339,17 @@ export function CooperationHub({ language, communityId, projects, state, onChang
     {tab === "buying" && <>
       <div className="hub-heading-row"><div><h2>{t("groupTitle")}</h2><p>{t("groupSubtitle")}</p></div>
         <button className="hub-button filled" type="button" onClick={() => setForm("buy")}>+ {t("newBuy")}</button></div>
-      <p className="hub-hint">{t("buyingDemo")}</p>
+      <div className="hub-buying-guide">
+        <h3>{t("buyingFlow")}</h3>
+        <ol>{(["step1", "step2", "step3", "step4", "step5"] as const).map((key) => <li key={key}>{t(key)}</li>)}</ol>
+      </div>
+      <div className="hub-role-panel">
+        <div className="hub-role-switch" aria-label={t("roleExplain")}>
+          <button type="button" aria-pressed={buyRole === "member"} className={buyRole === "member" ? "selected" : ""} onClick={() => setBuyRole("member")}>{t("roleMember")}</button>
+          <button type="button" aria-pressed={buyRole === "organizer"} className={buyRole === "organizer" ? "selected" : ""} onClick={() => setBuyRole("organizer")}>{t("roleOrganizer")}</button>
+        </div><p className="hub-hint">{t("roleExplain")}</p>
+      </div>
+      <p className="hub-hint">{t("noRealOrder")}</p>
       {buys.length ? buys.map((buy) => {
         const quote = selectedQuote(buy);
         const gross = potentialGrossDifference(buy);
@@ -347,25 +357,58 @@ export function CooperationHub({ language, communityId, projects, state, onChang
         return <article id={"hub-item-" + buy.id} key={buy.id} className="hub-operation">
           <div className="hub-op-head"><div><span className="hub-op-type">🛒 {t("buying")}</span><h3>{buy.title[language]}</h3></div>
             <span className={"hub-stage " + buy.phase}>{t(buy.phase)}</span></div>
+          <div className="hub-buy-details">
+            <div><strong>{t("terms")}</strong><span>{buy.specification?.[language] ?? buy.title[language]}</span></div>
+            <div><strong>{t("pickup")}</strong><span>{buy.fulfillmentPlan?.[language] ?? t("buyingDemo")}</span></div>
+          </div>
           <div className="hub-metrics">
             <div><strong>{totalUnits(buy)}</strong><span>{t("quantity")}</span></div>
             <div><strong>{buy.minimumUnits}</strong><span>{t("minimum")}</span></div>
             <div><strong>{quote ? money(quote.pricePerUnit, language) : "—"}</strong><span>{t("price")}</span></div>
           </div>
-          <div className="hub-progress" aria-label={number(Math.min(100, 100 * totalUnits(buy) / buy.minimumUnits), language) + "%"}><div style={{width: Math.min(100, 100 * totalUnits(buy) / buy.minimumUnits) + "%"}}/></div>
-          <div className="hub-quote-area"><label>{t("alternatives")}<select value={buy.selectedQuoteId} disabled={buy.phase !== "collecting"}
-            onChange={(event) => update((old) => chooseQuote(old, buy.id, event.target.value))}>
-            {buy.supplierQuotes.map((item) => <option key={item.id} value={item.id}>{item.supplier} — {money(item.pricePerUnit, language)} / {buy.unit[language]}</option>)}</select></label>
-            <div><small>{t("comparison")}</small><strong>{gross === null ? t("noReference") : money(gross, language)}</strong></div>
+          <div className="hub-progress" aria-label={number(Math.min(100, 100 * totalUnits(buy) / buy.minimumUnits), language) + "%"}>
+            <div style={{ width: Math.min(100, 100 * totalUnits(buy) / buy.minimumUnits) + "%" }}/></div>
+          <div className="hub-buy-summary">
+            <span>{t("quote")}: <strong>{quote?.supplier ?? "—"}</strong></span>
+            <span>{t("committed")}: <strong>{buy.myUnits}</strong></span>
+            <span>{t("memberCost")}: <strong>{quote ? money(quote.pricePerUnit * buy.myUnits, language) : "—"}</strong></span>
           </div>
-          <p className="hub-hint">{t("compareDisclaimer")}</p>
-          <div className="hub-workflow-controls"><label>{t("unitsMe")}<input type="number" min="0" max="100" step="1" disabled={buy.phase !== "collecting"}
-            value={currentUnits} onChange={(event) => setUnitsDraft((old) => ({ ...old, [buy.id]: event.target.value }))}/></label>
-            <button className="hub-button outline" type="button" disabled={buy.phase !== "collecting" || !Number.isInteger(Number(currentUnits)) || currentUnits.trim() === "" || Number(currentUnits) < 0 || Number(currentUnits) > 100}
-              onClick={() => update((old) => setMyUnits(old, buy.id, Number(currentUnits)))}>{t("update")}</button>
-            <button className="hub-button filled" type="button" disabled={buy.phase === "fulfilled" || (buy.phase === "collecting" && totalUnits(buy) < buy.minimumUnits)}
-              onClick={() => update((old) => advanceGroupBuy(old, buy.id))}>{buy.phase === "collecting" ? t("confirm") : buy.phase === "locked" ? t("complete") : t("fulfilled")}</button></div>
-          {buy.phase === "collecting" && totalUnits(buy) < buy.minimumUnits && <p className="hub-hint">{t("minimumHint")}</p>}
+          {buyRole === "member" ? <div className="hub-member-panel">
+            <h4>{t("memberControls")}</h4>
+            <p className="hub-hint">{t("voluntary")}</p>
+            <div className="hub-workflow-controls">
+              <label>{t("unitsMe")}<input type="number" min="0" max="100" step="1"
+                disabled={buy.phase !== "collecting"} value={currentUnits}
+                onChange={(event) => setUnitsDraft((old) => ({ ...old, [buy.id]: event.target.value }))}/></label>
+              <button className="hub-button filled" type="button" disabled={buy.phase !== "collecting" ||
+                !Number.isInteger(Number(currentUnits)) || currentUnits.trim() === "" ||
+                Number(currentUnits) < 0 || Number(currentUnits) > 100}
+                onClick={() => update((old) => setMyUnits(old, buy.id, Number(currentUnits)))}>{t("update")}</button>
+            </div>
+          </div> : <div className="hub-organizer-panel">
+            <h4>{t("organizerControls")}</h4>
+            <div className="hub-quote-area">
+              <label>{t("alternatives")}<select value={buy.selectedQuoteId} disabled={buy.phase !== "collecting"}
+                onChange={(event) => {
+                  if (event.target.value === buy.selectedQuoteId) return;
+                  update((old) => chooseQuote(old, buy.id, event.target.value), t("notePriceChange"));
+                  setUnitsDraft((old) => ({ ...old, [buy.id]: "0" }));
+                }}>
+                {buy.supplierQuotes.map((item) => <option key={item.id} value={item.id}>{item.supplier} — {money(item.pricePerUnit, language)} / {buy.unit[language]}</option>)}
+              </select></label>
+              <div><small>{t("comparison")}</small><strong>{gross === null ? t("noReference") : money(gross, language)}</strong></div>
+            </div>
+            <p className="hub-hint">{t("quoteResetWarning")}</p>
+            <p className="hub-hint">{t("compareDisclaimer")}</p>
+            <div className="hub-workflow-controls">
+              <button className="hub-button filled" type="button" disabled={buy.phase === "fulfilled" ||
+                (buy.phase === "collecting" && totalUnits(buy) < buy.minimumUnits)}
+                onClick={() => update((old) => advanceGroupBuy(old, buy.id))}>
+                {buy.phase === "collecting" ? t("confirm") : buy.phase === "locked" ? t("complete") : t("fulfilled")}
+              </button>
+              {buy.phase === "collecting" && totalUnits(buy) < buy.minimumUnits && <p className="hub-hint">{t("minimumHint")}</p>}
+            </div>
+          </div>}
         </article>;
       }) : <div className="hub-empty">{t("groupNo")}</div>}
     </>}
