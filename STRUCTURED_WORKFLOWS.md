@@ -8,7 +8,7 @@ This branch improves two areas identified during prototype review: ambiguous gro
 - A visitor can search categories and select individual activities, e.g., `gardening.planting`, rather than a generic gardening tag.
 - The user may provide a free-text note, but **notes, descriptions, claimed experience, and broad categories do not determine matches**.
 - Capability offers record selected task IDs, self-reported experience, contribution preference (volunteer/exchange/paid), and an explicit opt-in checkbox.
-- A posted skill need also uses selected task IDs. A project need must request that same task ID, and an opted-in member must offer it before a project match is suggested.
+- A posted skill need also uses selected task IDs. Project creation and project-detail **Add Need** can now classify tasks with the same picker. A project need must request that same task ID, and an opted-in member must offer it before a match is suggested.
 - Suggestions remain community-scoped and show a plain-language explanation. Arbitrary/custom skill descriptions can be visible as notes but aren't silently given matching privileges.
 - Regulated credentials, endorsements, and professional verification **are not implemented**. Experience claims do not constitute a safety guarantee.
 - New activities will eventually require a review/suggestion pipeline before gaining an approved catalog ID; this first prototype only includes the sample taxonomy.
@@ -39,6 +39,13 @@ Choose **Organizer** to inspect supplier quotations, select one, close the group
 **The organizer toggle is only a demo control, not real authorization**. A production launch requires accounts, membership and organizer roles, identity/supplier checks, payment terms, cancellation policies, deadlines, confirmation of delivery, unit allocations and moderation.
 
 The sample supplier pricing, reference price, participant counts and fulfillment are fictional. Price differences are hypothetical gross comparisons excluding fees, transport and taxes, **not verified savings**. Yunvia does not hold money.
+
+## Try a structured project need
+
+1. Create a new community project, and choose one or more catalogued activities in its skill picker.
+2. In Discover, publish a **Skill** need with the same activity, and offer that activity using the **Share a skill** form with explicit consent.
+3. A matching project suggestion now appears, with a readable reason. Selecting a different task such as planning rather than planting does not match an unrelated project requirement.
+4. Plain-text project needs remain available for human coordination, but do **not** gain automatic skill-matching tags from their text.
 
 ## Development and migration
 
