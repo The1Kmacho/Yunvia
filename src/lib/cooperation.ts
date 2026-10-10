@@ -1,8 +1,8 @@
 import { matchingTasks, taskLabel, normalizeSkillSelection, type SkillTaskId, type ExperienceLevel, type ContributionMode } from "./skills.ts";
 import type { Localized, Project } from "./model";
 
-export type NeedKind = "tool" | "buy" | "skill" | "eggs" | "vegetables";
-export type NeedTag = "drill" | "mower" | "rice" | "gardening" | "tutoring" | "skill";
+export type NeedKind = "tool" | "buy" | "skill";
+export type NeedTag = "drill" | "mower" | "rice" | "gardening" | "tutoring" | "skill" | "eggs" | "vegetables";
 export type CommunityNeed = {
   id: string;
   communityId: string;
