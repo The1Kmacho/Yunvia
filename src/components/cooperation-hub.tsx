@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { CONNECTED_DEMO, matchPayload, loadOpportunities } from "@/lib/backend-api";
 import { SkillPicker } from "./skill-picker";
 import { normalizeSkillSelection, taskLabel, type SkillTaskId, type ExperienceLevel, type ContributionMode } from "@/lib/skills";
 import {
   advanceGroupBuy, advanceLoan, chooseQuote, findOpportunities, potentialGrossDifference,
   requestAsset, selectedQuote, setMyUnits, totalUnits,
-  type CommunityNeed, type CooperationState, type NeedKind, type NeedTag, type SharedAsset, type GroupBuy
+  type CommunityNeed, type CooperationState, type NeedKind, type NeedTag, type SharedAsset, type GroupBuy, type Opportunity
 } from "@/lib/cooperation";
 import type { Language, Localized, Project } from "@/lib/model";
 
@@ -150,7 +151,26 @@ export function CooperationHub({ language, communityId, projects, state, onChang
   const [unitsDraft, setUnitsDraft] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState("");
   const t = (key: string) => wording[language][key] ?? key;
-  const opportunities = findOpportunities(state, projects, communityId);
+  // The matching request serializes only fields required by the server matcher.
+  // Key the response to that precise snapshot to avoid showing stale community data.
+  const snapshot = JSON.stringify(matchPayload(communityId, state, projects));
+  const [remoteMatches, setRemoteMatches] = useState<{
+    snapshot: string; items: Opportunity[]; error: string | null;
+  } | null>(null);
+  useEffect(() => {
+    if (!CONNECTED_DEMO) return;
+    const controller = new AbortController();
+    void loadOpportunities(snapshot, controller.signal)
+      .then((items) => setRemoteMatches({ snapshot, items, error: null }))
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) {
+          setRemoteMatches({ snapshot, items: [], error: error instanceof Error ? error.message : "API unavailable" });
+        }
+      });
+    return () => controller.abort();
+  }, [snapshot]);
+  const currentRemote = remoteMatches?.snapshot === snapshot ? remoteMatches : null;
+  const opportunities = CONNECTED_DEMO ? currentRemote?.items ?? [] : findOpportunities(state, projects, communityId);
   const needs = state.needs.filter((need) => need.communityId === communityId && need.active);
   const buys = state.groupBuys.filter((buy) => buy.communityId === communityId);
   const assets = state.assets.filter((asset) => asset.communityId === communityId && asset.optedIn);
@@ -319,6 +339,19 @@ export function CooperationHub({ language, communityId, projects, state, onChang
     {tab === "discover" && <>
       <div className="hub-heading-row"><div><h2>{t("matches")}</h2><p>{t("matchesCaption")}</p></div>
         <button className="hub-button filled" type="button" onClick={() => setForm("need")}>+ {t("newNeed")}</button></div>
+      <div className="hub-source-label">
+        {CONNECTED_DEMO
+          ? (language === "es" ? "Coincidencias calculadas por ASP.NET Core (demostración)" : "Matching calculated by ASP.NET Core (demo)")
+          : (language === "es" ? "Coincidencias locales de la demostración — conecta .NET para probar la API" : "Browser-only demo matching — connect .NET to test the API")}
+      </div>
+      {CONNECTED_DEMO && !currentRemote && <p role="status" className="hub-hint">
+        {language === "es" ? "Consultando la API de oportunidades…" : "Checking the opportunities API…"}
+      </p>}
+      {CONNECTED_DEMO && currentRemote?.error && <p role="alert" className="hub-api-error">
+        {language === "es"
+          ? "No se pueden obtener coincidencias del servidor. Inicia la API .NET y verifica la conexión."
+          : "Server matching is unavailable. Start the .NET API and verify the connection."} ({currentRemote.error})
+      </p>}
       {opportunities.length ? <div className="hub-match-list">
         {opportunities.map((match) => <article className="hub-match" key={match.id}>
           <div className="hub-match-icon" aria-hidden="true">{match.kind === "loan" ? "🧰" : match.kind === "buy" ? "🛒" : "🌱"}</div>
@@ -328,7 +361,7 @@ export function CooperationHub({ language, communityId, projects, state, onChang
           <button type="button" className="hub-button outline" onClick={() => showOpportunity(match.kind, match.targetId)}>
             {t(match.kind)} <span aria-hidden="true">→</span></button>
         </article>)}
-      </div> : <div className="hub-empty">{t("none")}</div>}
+      </div> : (!CONNECTED_DEMO || (currentRemote && !currentRemote.error)) && <div className="hub-empty">{t("none")}</div>}
       <div className="hub-two-col">
         <section className="hub-surface"><div className="hub-heading-row small"><div><h2>{t("existingNeeds")}</h2><p>{t("activeNeed")}</p></div></div>
           {needs.length ? needs.map((need) => <div className="hub-simple-row" key={need.id}><span>◌</span><div><strong>{need.title[language]}</strong><small>{t(need.kind === "tool" ? "tool" : need.kind === "buy" ? "groceries" : "skills")}{need.note ? " · " + need.note : ""}</small></div></div>)
