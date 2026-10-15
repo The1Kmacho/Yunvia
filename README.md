@@ -6,7 +6,26 @@ Yunvia is an open-source project to help people build stronger, more self-suffic
 
 Born in Puerto Rico, designed for communities everywhere.
 
-> **Project status:** Interactive browser-only prototype. Yunvia is not yet a deployed community service, registered nonprofit, or legally cleared brand.
+> **Project status:** Interactive prototype with optional development-only .NET matching API. Yunvia is not yet a deployed community service, registered nonprofit, or legally cleared brand.
+
+## First C# backend integration (development branch)
+
+The `feat/dotnet-opportunity-api` branch adds an **ASP.NET Core 10** backend for skills catalog and opportunity matching. The Next.js frontend can call it when `NEXT_PUBLIC_YUNVIA_API_URL` is configured. The server computes suggestions, while the browser still supplies fictional demo data; **this is not yet a secure, persistent multi-user backend**.
+
+Requires the **.NET 10 SDK**. Open two terminals from the repository root:
+
+```powershell
+# Terminal 1 — C# API (http://localhost:5064)
+dotnet run --project backend/Yunvia.Api --launch-profile http
+```
+
+```powershell
+# Terminal 2 — Next.js
+$env:NEXT_PUBLIC_YUNVIA_API_URL="http://localhost:5064"
+npm run dev
+```
+
+See [backend/README.md](backend/README.md) for the API routes, automated checks, setup and important security limitations. No extra npm libraries are required for this milestone.
 
 ## Three-pillar interactive workflow (development branch)
 
