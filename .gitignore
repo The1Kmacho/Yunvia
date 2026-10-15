@@ -8,3 +8,10 @@ build/
 !.env.example
 .DS_Store
 *.log
+
+# ASP.NET Core / .NET build output
+**/bin/
+**/obj/
+.vs/
+*.user
+*.suo
