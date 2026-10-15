@@ -18,3 +18,29 @@ jobs:
       # A lockfile must be committed before changing this to npm ci.
       - run: npm install --no-audit --no-fund
       - run: npm run check
+
+  dotnet:
+    name: .NET API and domain checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet build backend/Yunvia.Api/Yunvia.Api.csproj --configuration Release
+      - run: dotnet run --project backend/Yunvia.Domain.Tests/Yunvia.Domain.Tests.csproj --configuration Release
+      - name: Smoke-test HTTP endpoints
+        shell: bash
+        run: |
+          ASPNETCORE_ENVIRONMENT=Development dotnet run --project backend/Yunvia.Api/Yunvia.Api.csproj --configuration Release --no-build --no-launch-profile --urls http://127.0.0.1:5064 > /tmp/yunvia-api.log 2>&1 &
+          PID=$!
+          trap 'kill $PID || true' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:5064/health > /tmp/health.json; then break; fi
+            sleep 1
+          done
+          grep -q '"status":"ok"' /tmp/health.json
+          curl --fail --silent http://127.0.0.1:5064/api/v1/demo/skills > /tmp/catalog.json
+          grep -q 'gardening.planting' /tmp/catalog.json
