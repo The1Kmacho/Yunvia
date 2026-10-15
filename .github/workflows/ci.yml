@@ -44,3 +44,7 @@ jobs:
           grep -q '"status":"ok"' /tmp/health.json
           curl --fail --silent http://127.0.0.1:5064/api/v1/demo/skills > /tmp/catalog.json
           grep -q 'gardening.planting' /tmp/catalog.json
+          # Real HTTP POST serialization check: catalogued consented task -> project opportunity
+          printf '%s' '{"communityId":"barrio","needs":[{"id":"need","communityId":"barrio","kind":"skill","tag":"gardening","title":{"es":"Sembrar","en":"Planting"},"active":true,"skillTaskIds":["gardening.planting"]}],"capabilities":[{"id":"cap","communityId":"barrio","optedIn":true,"skillTaskIds":["gardening.planting"]}],"assets":[],"groupBuys":[],"projects":[{"id":"project","communityId":"barrio","title":{"es":"Huerto","en":"Garden"},"needs":[{"quantity":2,"pledged":0,"skillTaskIds":["gardening.planting"]}]}]}' > /tmp/match-request.json
+          curl --fail --silent --show-error -H 'Content-Type: application/json' --data-binary @/tmp/match-request.json http://127.0.0.1:5064/api/v1/demo/opportunities/match > /tmp/matches.json
+          grep -q '"kind":"project"' /tmp/matches.json
